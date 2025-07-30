@@ -1,21 +1,99 @@
 use ::java::util::text::Text
 use ::java::util::InclusiveRange
 
-// `supported_formats` and `overlays` were introduced in 1.20.2,
-// but multi-version packs will use these with an older pack_format.
-struct Pack {
-	pack: struct PackBase {
-		description: Text,
-		pack_format: #[pack_format] int,
-		#[since="1.20.2"]
-		supported_formats?: InclusiveRange<#[pack_format] int>,
-	},
+type DataPack = PackMcmeta<int @ 4..81, int @ 82..>
+type ResourcePack = PackMcmeta<int @ 1..64, int @ 65..>
+
+// @deprecated
+type Pack = BasePack<PackVersionInfoOld<int>, PackOverlaysOld<int>>
+
+type PackMcmeta<TOld, TNew> = (
+	BasePack<PackVersionInfoOld<TOld>, PackOverlaysOld<TOld>> |
+	BasePack<PackVersionInfoNew<TNew>, PackOverlaysNew<TNew>> |
+	BasePack<PackVersionInfoIntermediary<TOld, TNew>, PackOverlaysMixed<TOld, TNew>> |
+)
+
+type BasePack<VersionInfo, TOverlays> = struct {
+	pack: VersionInfo,
 	#[since="1.19"]
 	filter?: PackFilter,
 	#[since="1.19.3"]
 	features?: PackFeatures,
 	#[since="1.20.2"]
-	overlays?: PackOverlays,
+	overlays?: TOverlays,
+}
+
+struct PackVersionInfoCommon {
+	description: Text,
+}
+
+// `supported_formats` and `overlays` were introduced in 1.20.2,
+// but multi-version packs will use these with an older pack_format.
+type PackVersionInfoOld<T> = struct {
+	...PackVersionInfoCommon,
+	pack_format: #[pack_format] T,
+	// Only allows tuple form in 25w31a, likely a bug
+	#[since="1.20.2"]
+	supported_formats?: InclusiveRange<#[pack_format] T>,
+}
+
+type PackVersionInfoNew<T> = struct {
+	...PackVersionInfoCommon,
+	/// Has no effect in 1.21.9+
+	/// Only makes the pack "valid but incompatible" in old versions
+	pack_format?: #[pack_format] T,
+	min_format: #[pack_format] SemanticPackFormat<T>,
+	max_format: #[pack_format] SemanticPackFormat<T>,
+}
+
+type PackVersionInfoIntermediary<TOld, TNew> = struct {
+	...PackVersionInfoCommon,
+	pack_format: #[pack_format] TOld,
+	// Only allows tuple form in 25w31a
+	// May need further modification if it is a bug and get fixed
+	#[since="1.20.2"]
+	supported_formats?: [#[pack_format] TOld, #[pack_format] TNew],
+	min_format: #[pack_format] SemanticPackFormat<TOld>,
+	max_format: #[pack_format] SemanticPackFormat<TNew>,
+}
+
+type SemanticPackFormat<T> = (T | [T] @ 1 | [T, int @ 0..])
+
+type PackOverlays<T> = struct {
+	entries: [T],
+}
+
+type PackOverlaysOld<T> = PackOverlays<PackOverlayOld<T>>
+type PackOverlaysNew<T> = PackOverlays<PackOverlayNew<T>>
+type PackOverlaysMixed<TOld, TNew> = PackOverlays<(
+	PackOverlayOld<TOld> |
+	PackOverlayNew<TNew> |
+	PackOverlayIntermediary<TOld, TNew> |
+)>
+
+struct PackOverlayCommon {
+	directory: string @ 1..,
+}
+
+type PackOverlayOld<T> = struct {
+	...PackOverlayCommon,
+	// Only allows tuple form in 25w31a, likely a bug
+	formats: InclusiveRange<#[pack_format] T>,
+}
+
+type PackOverlayNew<T> = struct {
+	...PackOverlayCommon,
+	min_format: #[pack_format] SemanticPackFormat<T>,
+	max_format: #[pack_format] SemanticPackFormat<T>,
+}
+
+type PackOverlayIntermediary<TOld, TNew> = struct {
+	...PackOverlayCommon,
+	// Only allows tuple form in 25w31a
+	// May need further modification if it is a bug and get fixed
+	formats: [#[pack_format] TOld, #[pack_format] TNew],
+	min_format: #[pack_format] SemanticPackFormat<TOld>,
+	max_format: #[pack_format] SemanticPackFormat<TNew>,
 }
 
 struct PackFilter {
@@ -40,13 +118,4 @@ enum(string) FeatureFlag {
 	#[since="1.21.2"] RedstoneExperiments = "redstone_experiments",
 	#[since="1.21.2"] MinecartImprovements = "minecart_improvements",
 	#[since="1.21.2"] #[until="1.21.4"] WinterDrop = "winter_drop",
-}
-
-struct PackOverlays {
-	entries: [PackOverlay],
-}
-
-struct PackOverlay {
-	directory: string @ 1..,
-	formats: InclusiveRange<#[pack_format] int>,
 }
