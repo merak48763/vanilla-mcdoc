@@ -65,14 +65,25 @@ type PackOverlays<T> = struct {
 
 type PackOverlaysOld<T> = PackOverlays<PackOverlayOld<T>>
 type PackOverlaysNew<T> = PackOverlays<PackOverlayNew<T>>
-type PackOverlaysMixed<TOld, TNew> = PackOverlays<(
+
+// Currently if all overlays are for new versions, "formats" is not allowed - likely a bug
+// If the pack supports new and old versions, "formats" should not be deprecated in all cases
+//type PackOverlaysMixed<TOld, TNew> = PackOverlays<(
+//	PackOverlayOld<TOld> |
+//	PackOverlayNew<TNew> |
+//	PackOverlayIntermediary<TOld, TNew> |
+//)>
+type PackOverlaysIntermediary<TOld, TNew> = PackOverlays<(
 	PackOverlayOld<TOld> |
-	PackOverlayNew<TNew> |
-	PackOverlayIntermediary<TOld, TNew> |
+	PackOverlayIntermediary<(TOld | TNew), TNew> |
 )>
+type PackOverlaysMixed<TOld, TNew> = (
+	PackOverlaysNew<TNew> |
+	PackOverlaysIntermediary<TOld, TNew> |
+)
 
 struct PackOverlayCommon {
-	directory: string @ 1..,
+	directory: #[match_regex="^[-_a-zA-Z0-9.]*$"] string @ 1..,
 }
 
 type PackOverlayOld<T> = struct {
