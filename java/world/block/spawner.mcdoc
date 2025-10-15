@@ -65,14 +65,10 @@ dispatch minecraft:block[spawner] to minecraft:block_entity[mob_spawner]
 
 dispatch minecraft:block[trial_spawner] to minecraft:block_entity[trial_spawner]
 
-// TODO: check this, probably wrong between 1.18 and 1.20.5
 struct SpawnPotential {
-	#[until="1.20.5"]
-	Entity?: (
-		#[until="1.18"] AnyEntity |
-		#[since="1.18"] SpawnerEntry |
-	),
-	#[since="1.20.5"]
+	#[until="1.18"]
+	Entity?: AnyEntity,
+	#[since="1.18"]
 	data: SpawnerEntry,
 	/// Weight for this entry to be chosen.
 	#[until="1.18"]
